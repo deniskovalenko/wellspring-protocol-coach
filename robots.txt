@@ -1,14 +1,14 @@
 User-agent: Googlebot
-Allow: /
+Disallow:
 
 User-agent: Bingbot
-Allow: /
+Disallow:
 
-User-agent: Twitterbot
-Allow: /
+User-agent: DuckDuckBot
+Disallow:
 
-User-agent: facebookexternalhit
-Allow: /
+User-agent: Applebot
+Disallow:
 
 User-agent: *
-Allow: /
+Disallow: /
