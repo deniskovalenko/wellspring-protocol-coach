@@ -11,7 +11,7 @@ import DonateButton from "@/components/DonateButton";
 
 const queryClient = new QueryClient();
 
-const STRIPE_DONATE_LINK = "https://buy.stripe.com/test_bJecN786G3Ef6JSbZN2sM00"; // Replace with your actual link
+const STRIPE_10_DONATE_LINK = "https://buy.stripe.com/28E6oI2fU1ieew82EZ04800";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -34,7 +34,7 @@ const App = () => (
           right: 24,
           zIndex: 1000,
         }}>
-          <DonateButton link={STRIPE_DONATE_LINK} />
+          <DonateButton link={STRIPE_10_DONATE_LINK} />
         </div>
       </AuthProvider>
     </TooltipProvider>
