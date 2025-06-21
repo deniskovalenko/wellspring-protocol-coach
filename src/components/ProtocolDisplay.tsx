@@ -110,7 +110,7 @@ const ProtocolDisplay: React.FC<ProtocolDisplayProps> = ({ protocol, onAccept, o
             className="flex-1 py-4 px-6 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-lg"
           >
             <span className="flex items-center justify-center">
-              I Love This Protocol!
+              Let's make a plan
               <ArrowRight className="w-5 h-5 ml-2" />
             </span>
           </button>
