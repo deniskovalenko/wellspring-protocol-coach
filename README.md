@@ -1,2 +1,4 @@
 
-Frontend for 
+Frontend for Optyma digital coach
+
+
