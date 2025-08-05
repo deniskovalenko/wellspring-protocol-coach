@@ -14,7 +14,120 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      protocols: {
+        Row: {
+          actions: Json
+          category: string
+          created_at: string
+          id: string
+          name: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          actions: Json
+          category: string
+          created_at?: string
+          id?: string
+          name: string
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json
+          category?: string
+          created_at?: string
+          id?: string
+          name?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_commitments: {
+        Row: {
+          commitment_text: string
+          created_at: string
+          goal_id: string
+          id: string
+          protocol_id: string
+          selected_actions: Json
+          target_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          commitment_text: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          protocol_id: string
+          selected_actions: Json
+          target_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          commitment_text?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          protocol_id?: string
+          selected_actions?: Json
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_commitments_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "user_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_commitments_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_goals: {
+        Row: {
+          budget: number
+          category: string
+          created_at: string
+          id: string
+          struggle: string
+          time_per_day: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          budget: number
+          category: string
+          created_at?: string
+          id?: string
+          struggle: string
+          time_per_day: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          budget?: number
+          category?: string
+          created_at?: string
+          id?: string
+          struggle?: string
+          time_per_day?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
