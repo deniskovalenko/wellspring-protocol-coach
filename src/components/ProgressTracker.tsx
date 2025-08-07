@@ -56,7 +56,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
 
       try {
         // Load existing progress from Supabase
-        const { data: existingProgress, error } = await supabase
+        const { data: existingProgress, error } = await (supabase as any)
           .from('user_progress')
           .select('*')
           .eq('user_id', user.uid)
@@ -72,7 +72,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
           });
         } else if (existingProgress) {
           // Merge existing progress into week structure
-          existingProgress.forEach((progressItem: UserProgressData) => {
+          existingProgress.forEach((progressItem: any) => {
             const dayIndex = weekProgress.findIndex(day => day.date === progressItem.date);
             if (dayIndex !== -1) {
               weekProgress[dayIndex].completed[progressItem.action_id] = progressItem.completed;
@@ -114,7 +114,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
     try {
       if (newState) {
         // Insert or update completion
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('user_progress')
           .upsert({
             user_id: user.uid,
@@ -150,7 +150,7 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
         }
       } else {
         // Delete completion
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('user_progress')
           .delete()
           .eq('user_id', user.uid)
