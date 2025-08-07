@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sparkles, Brain, Target, Calendar, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Brain, Target, Calendar, CheckCircle, Home, BarChart3 } from 'lucide-react';
 import GoalSelection from '../components/GoalSelection';
 import ProtocolGeneration from '../components/ProtocolGeneration';
 import ProtocolDisplay from '../components/ProtocolDisplay';
@@ -48,6 +48,51 @@ const Index = () => {
   const [userGoal, setUserGoal] = useState<WellbeingGoal | null>(null);
   const [protocol, setProtocol] = useState<Protocol | null>(null);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
+
+  // Load persisted step from localStorage on mount
+  useEffect(() => {
+    const savedStep = localStorage.getItem('wellbeing-current-step') as Step;
+    const savedGoal = localStorage.getItem('wellbeing-user-goal');
+    const savedProtocol = localStorage.getItem('wellbeing-protocol');
+    const savedCommitments = localStorage.getItem('wellbeing-commitments');
+
+    if (savedStep && savedStep !== 'welcome') {
+      setCurrentStep(savedStep);
+    }
+    if (savedGoal) {
+      setUserGoal(JSON.parse(savedGoal));
+    }
+    if (savedProtocol) {
+      setProtocol(JSON.parse(savedProtocol));
+    }
+    if (savedCommitments) {
+      setCommitments(JSON.parse(savedCommitments));
+    }
+  }, []);
+
+  // Persist step changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('wellbeing-current-step', currentStep);
+  }, [currentStep]);
+
+  // Persist data changes to localStorage
+  useEffect(() => {
+    if (userGoal) {
+      localStorage.setItem('wellbeing-user-goal', JSON.stringify(userGoal));
+    }
+  }, [userGoal]);
+
+  useEffect(() => {
+    if (protocol) {
+      localStorage.setItem('wellbeing-protocol', JSON.stringify(protocol));
+    }
+  }, [protocol]);
+
+  useEffect(() => {
+    if (commitments.length > 0) {
+      localStorage.setItem('wellbeing-commitments', JSON.stringify(commitments));
+    }
+  }, [commitments]);
 
   const handleGoalSubmit = (goal: WellbeingGoal) => {
     setUserGoal(goal);
@@ -140,15 +185,60 @@ const Index = () => {
     }
   };
 
+  const showNavigation = currentStep !== 'welcome' && currentStep !== 'generating';
+
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Show logout or sign-in button in top right */}
-      {!loading && (
+      {/* Navigation Bar */}
+      {showNavigation && (
+        <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-200 z-50">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <Brain className="w-6 h-6 text-blue-700" />
+                <span className="font-semibold text-gray-900">Wellbeing Coach</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setCurrentStep('goals')}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                    currentStep === 'goals' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Target className="w-4 h-4" />
+                  <span>Goals</span>
+                </button>
+                {currentStep === 'tracking' && (
+                  <button
+                    onClick={() => setCurrentStep('tracking')}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Progress</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            {!loading && (
+              <div>
+                {user ? <LogoutButton /> : <SignInButton />}
+              </div>
+            )}
+          </div>
+        </nav>
+      )}
+
+      {/* Show logout or sign-in button in top right for welcome screen */}
+      {!showNavigation && !loading && (
         <div style={{ position: 'absolute', top: 24, right: 24, zIndex: 1000 }}>
           {user ? <LogoutButton /> : <SignInButton />}
         </div>
       )}
-      {renderCurrentStep()}
+
+      {/* Main content with top padding when navigation is visible */}
+      <div style={{ paddingTop: showNavigation ? '80px' : '0' }}>
+        {renderCurrentStep()}
+      </div>
     </div>
   );
 };

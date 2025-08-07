@@ -1,7 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, CheckCircle2, Circle, Flame, Target, TrendingUp, Sparkles } from 'lucide-react';
 import { Protocol, Commitment } from '../pages/Index';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/components/AuthProvider';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProgressTrackerProps {
   protocol: Protocol;
@@ -14,17 +16,31 @@ interface DayProgress {
   completed: { [actionId: string]: boolean };
 }
 
+interface UserProgressData {
+  id?: string;
+  user_id: string;
+  date: string;
+  action_id: string;
+  completed: boolean;
+}
+
 const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments, onBack }) => {
+  const { user } = useAuthContext();
+  const { toast } = useToast();
   const [progress, setProgress] = useState<DayProgress[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Initialize progress for the week
+  // Initialize progress data and load from Supabase
   useEffect(() => {
-    const initializeProgress = () => {
+    const initializeProgress = async () => {
+      if (!user) return;
+
       const weekProgress: DayProgress[] = [];
       const today = new Date();
       
+      // Create week structure
       for (let i = 0; i < 7; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
@@ -37,14 +53,50 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
           }), {})
         });
       }
-      
+
+      try {
+        // Load existing progress from Supabase
+        const { data: existingProgress, error } = await supabase
+          .from('user_progress')
+          .select('*')
+          .eq('user_id', user.uid)
+          .gte('date', weekProgress[0].date)
+          .lte('date', weekProgress[weekProgress.length - 1].date);
+
+        if (error) {
+          console.error('Error loading progress:', error);
+          toast({
+            title: "Error loading progress",
+            description: "Could not load your progress data.",
+            variant: "destructive",
+          });
+        } else if (existingProgress) {
+          // Merge existing progress into week structure
+          existingProgress.forEach((progressItem: UserProgressData) => {
+            const dayIndex = weekProgress.findIndex(day => day.date === progressItem.date);
+            if (dayIndex !== -1) {
+              weekProgress[dayIndex].completed[progressItem.action_id] = progressItem.completed;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing progress:', error);
+      }
+
       setProgress(weekProgress);
+      setLoading(false);
     };
 
     initializeProgress();
-  }, [commitments]);
+  }, [commitments, user, toast]);
 
-  const toggleCompletion = (date: string, actionId: string) => {
+  const toggleCompletion = async (date: string, actionId: string) => {
+    if (!user) return;
+
+    const currentState = progress.find(day => day.date === date)?.completed[actionId] || false;
+    const newState = !currentState;
+
+    // Optimistically update UI
     setProgress(prev => 
       prev.map(day => 
         day.date === date 
@@ -52,25 +104,104 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
               ...day,
               completed: {
                 ...day.completed,
-                [actionId]: !day.completed[actionId]
+                [actionId]: newState
               }
             }
           : day
       )
     );
 
-    // Show celebration if this completes all tasks for the day
-    const dayProgress = progress.find(day => day.date === date);
-    if (dayProgress) {
-      const completedCount = Object.values({
-        ...dayProgress.completed,
-        [actionId]: !dayProgress.completed[actionId]
-      }).filter(Boolean).length;
-      
-      if (completedCount === commitments.length) {
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 3000);
+    try {
+      if (newState) {
+        // Insert or update completion
+        const { error } = await supabase
+          .from('user_progress')
+          .upsert({
+            user_id: user.uid,
+            date: date,
+            action_id: actionId,
+            completed: true
+          }, {
+            onConflict: 'user_id,date,action_id'
+          });
+
+        if (error) {
+          console.error('Error saving progress:', error);
+          toast({
+            title: "Error saving progress",
+            description: "Could not save your progress.",
+            variant: "destructive",
+          });
+          // Revert optimistic update
+          setProgress(prev => 
+            prev.map(day => 
+              day.date === date 
+                ? {
+                    ...day,
+                    completed: {
+                      ...day.completed,
+                      [actionId]: currentState
+                    }
+                  }
+                : day
+            )
+          );
+          return;
+        }
+      } else {
+        // Delete completion
+        const { error } = await supabase
+          .from('user_progress')
+          .delete()
+          .eq('user_id', user.uid)
+          .eq('date', date)
+          .eq('action_id', actionId);
+
+        if (error) {
+          console.error('Error removing progress:', error);
+          toast({
+            title: "Error updating progress",
+            description: "Could not update your progress.",
+            variant: "destructive",
+          });
+          // Revert optimistic update
+          setProgress(prev => 
+            prev.map(day => 
+              day.date === date 
+                ? {
+                    ...day,
+                    completed: {
+                      ...day.completed,
+                      [actionId]: currentState
+                    }
+                  }
+                : day
+            )
+          );
+          return;
+        }
       }
+
+      // Show celebration if this completes all tasks for the day
+      const dayProgress = progress.find(day => day.date === date);
+      if (dayProgress && newState) {
+        const completedCount = Object.values({
+          ...dayProgress.completed,
+          [actionId]: newState
+        }).filter(Boolean).length;
+        
+        if (completedCount === commitments.length) {
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 3000);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling completion:', error);
+      toast({
+        title: "Error",
+        description: "Something went wrong.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,6 +254,17 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
   };
 
   const committedActions = getCommittedActions();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-purple-50 p-4">
