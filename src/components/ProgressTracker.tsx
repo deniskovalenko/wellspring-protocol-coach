@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, CheckCircle2, Circle, Flame, Target, TrendingUp, Sparkles } from 'lucide-react';
 import { Protocol, Commitment } from '../pages/Index';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/components/AuthProvider';
+import { useFirebaseSupabase } from '@/hooks/use-firebase-supabase';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProgressTrackerProps {
@@ -27,6 +27,7 @@ interface UserProgressData {
 const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments, onBack }) => {
   const { user } = useAuthContext();
   const { toast } = useToast();
+  const { createUserProgress, getUserProgress, deleteUserProgress } = useFirebaseSupabase();
   const [progress, setProgress] = useState<DayProgress[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -56,12 +57,10 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
 
       try {
         // Load existing progress from Supabase
-        const { data: existingProgress, error } = await (supabase as any)
-          .from('user_progress')
-          .select('*')
-          .eq('user_id', user.uid)
-          .gte('date', weekProgress[0].date)
-          .lte('date', weekProgress[weekProgress.length - 1].date);
+        const { data: existingProgress, error } = await getUserProgress(
+          weekProgress[0].date,
+          weekProgress[weekProgress.length - 1].date
+        );
 
         if (error) {
           console.error('Error loading progress:', error);
@@ -114,16 +113,11 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
     try {
       if (newState) {
         // Insert or update completion
-        const { error } = await (supabase as any)
-          .from('user_progress')
-          .upsert({
-            user_id: user.uid,
-            date: date,
-            action_id: actionId,
-            completed: true
-          }, {
-            onConflict: 'user_id,date,action_id'
-          });
+        const { error } = await createUserProgress({
+          date: date,
+          action_id: actionId,
+          completed: true
+        });
 
         if (error) {
           console.error('Error saving progress:', error);
@@ -149,36 +143,38 @@ const ProgressTracker: React.FC<ProgressTrackerProps> = ({ protocol, commitments
           return;
         }
       } else {
-        // Delete completion
-        const { error } = await (supabase as any)
-          .from('user_progress')
-          .delete()
-          .eq('user_id', user.uid)
-          .eq('date', date)
-          .eq('action_id', actionId);
+        // Find and delete the progress entry
+        const { data: existingProgress } = await getUserProgress(date, date);
+        const progressEntry = existingProgress?.find(p => 
+          p.action_id === actionId && p.date === date
+        );
+        
+        if (progressEntry?.id) {
+          const { error } = await deleteUserProgress(progressEntry.id);
 
-        if (error) {
-          console.error('Error removing progress:', error);
-          toast({
-            title: "Error updating progress",
-            description: "Could not update your progress.",
-            variant: "destructive",
-          });
-          // Revert optimistic update
-          setProgress(prev => 
-            prev.map(day => 
-              day.date === date 
-                ? {
-                    ...day,
-                    completed: {
-                      ...day.completed,
-                      [actionId]: currentState
+          if (error) {
+            console.error('Error removing progress:', error);
+            toast({
+              title: "Error updating progress",
+              description: "Could not update your progress.",
+              variant: "destructive",
+            });
+            // Revert optimistic update
+            setProgress(prev => 
+              prev.map(day => 
+                day.date === date 
+                  ? {
+                      ...day,
+                      completed: {
+                        ...day.completed,
+                        [actionId]: currentState
+                      }
                     }
-                  }
-                : day
-            )
-          );
-          return;
+                  : day
+              )
+            );
+            return;
+          }
         }
       }
 

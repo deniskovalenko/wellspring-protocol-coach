@@ -9,6 +9,7 @@ import { useAuthContext } from "@/components/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import LogoutButton from "@/components/LogoutButton";
 import { SignInButton } from "./Login";
+import { AppNavbar } from "@/components/AppNavbar";
 
 type Step = 'welcome' | 'goals' | 'generating' | 'protocol' | 'commitment' | 'tracking';
 
@@ -189,54 +190,18 @@ const Index = () => {
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh' }}>
-      {/* Navigation Bar */}
-      {showNavigation && (
-        <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-200 z-50">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <Brain className="w-6 h-6 text-blue-700" />
-                <span className="font-semibold text-gray-900">Wellbeing Coach</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setCurrentStep('goals')}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                    currentStep === 'goals' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <Target className="w-4 h-4" />
-                  <span>Goals</span>
-                </button>
-                {currentStep === 'tracking' && (
-                  <button
-                    onClick={() => setCurrentStep('tracking')}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Progress</span>
-                  </button>
-                )}
-              </div>
-            </div>
-            {!loading && (
-              <div>
-                {user ? <LogoutButton /> : <SignInButton />}
-              </div>
-            )}
-          </div>
-        </nav>
-      )}
+      {/* App Navbar for signed-in users */}
+      {user && <AppNavbar />}
 
-      {/* Show logout or sign-in button in top right for welcome screen */}
-      {!showNavigation && !loading && (
+      {/* Show logout or sign-in button in top right for welcome screen when not signed in */}
+      {!user && !loading && (
         <div style={{ position: 'absolute', top: 24, right: 24, zIndex: 1000 }}>
-          {user ? <LogoutButton /> : <SignInButton />}
+          <SignInButton />
         </div>
       )}
 
-      {/* Main content with top padding when navigation is visible */}
-      <div style={{ paddingTop: showNavigation ? '80px' : '0' }}>
+      {/* Main content */}
+      <div style={{ paddingTop: user ? '80px' : '0' }}>
         {renderCurrentStep()}
       </div>
     </div>
